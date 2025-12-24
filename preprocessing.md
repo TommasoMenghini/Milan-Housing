@@ -189,6 +189,7 @@ A summary of variables affected by missingness and their frequency is reported i
 | house.efficiency     | 842           | 10.5%    |
 | condominium.fees     | 907           | 11.3%    |
 
+</div>
 
 Iterative Regression Imputation
 ==============================
@@ -219,12 +220,12 @@ data.imp$year.imp <- random.imp(data$year)
 data.imp$total_floors.imp <- random.imp(data$total_floors)
 ```
 
-### Univariate imputation models
+## Univariate imputation models
 
 Each variable with missing values is imputed using a model tailored to its nature. 
 The imputation cycle is repeated for a fixed number of iterations (7). This choice is arbitrary but sufficient in practice: monitoring **mean absolute error (MAE)** for continuous variables and classification accuracy for categorical variables shows stabilization after a few iterations.
 
-As a final validation step, the distributions of observed and imputed values are compared using graphical diagnostics. 
+As a final validation step, the distributions of observed and imputed values are compared using graphical diagnostics - not shown here. 
 
 Finally all preprocessing and imputation steps are replicated identically on the test set (4800 observations), ensuring full consistency between training and test data.
 
@@ -297,3 +298,20 @@ for(s in 1:n.sims){
 }
 
 ```
+Final Dataset
+=============
+After the iterative regression imputation procedure has converged, the imputed values are used to replace the original missing entries in the dataset. All variables involved in the imputation process are updated accordingly.
+
+``` r
+data$square_meters <- data.imp$square_meters.imp
+data$condominium_fees <- data.imp$condominium_fees.imp
+data$bathrooms_number <- data.imp$bathrooms_number.imp
+data$heating_centralized <- data.imp$heating_centralized.imp
+data$house_efficiency <- data.imp$house_efficiency.imp
+data$year <- data.imp$year.imp
+data$total_floors <- data.imp$total_floors.imp
+
+write.csv(data.frame(data), "cleaned_training.csv", row.names = FALSE)
+```
+
+The resulting file `cleaned_training.csv` constitutes the final training dataset and is used as input for all subsequent modeling steps discussed in []().
