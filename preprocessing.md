@@ -190,4 +190,110 @@ A summary of variables affected by missingness and their frequency is reported i
 | condominium.fees     | 907           | 11.3%    |
 
 
+Iterative Regression Imputation
+==============================
 
+When multiple predictors contain missing values, a direct approach consists in specifying a single multivariate model for all incomplete variables. In practice, however, defining a reasonable joint regression model can be difficult. Although automatic procedures exist, their use often amounts to a “black-box” approach, offering little control over the imputation mechanism [`Gelman and Hill`](https://sites.stat.columbia.edu/gelman/arm/).
+
+For this reason, we adopt **iterative regression imputation**, a flexible and transparent alternative. The procedure consists of:
+1. initializing all missing values using a simple method;
+2. iteratively imputing each variable conditional on the remaining ones and eventually other predictors, using the most recent imputations;
+3. repeating the cycle until approximate convergence.
+
+Working with a sequence of univariate models is considerably simpler than specifying a single multivariate model, while still capturing the dependence structure among variables. At the same time, care must be taken to avoid inconsistencies across models and to assess the plausibility of the imputed values.
+
+## Random initialization
+
+Missing values are initially filled using **random imputation**, that is, by sampling with replacement from the observed values of each variable. This step provides a starting point for the iterative procedure.
+
+``` r
+set.seed(123)
+
+data.imp <- data
+data.imp$square_meters.imp <- random.imp(data$square_meters)
+data.imp$condominium_fees.imp <- random.imp(data$condominium_fees)
+data.imp$bathrooms_number.imp <- random.imp(data$bathrooms_number)
+data.imp$heating_centralized.imp <- random.imp(data$heating_centralized)
+data.imp$house_efficiency.imp <- random.imp(data$house_efficiency)
+data.imp$year.imp <- random.imp(data$year)
+data.imp$total_floors.imp <- random.imp(data$total_floors)
+```
+
+### Univariate imputation models
+
+Each variable with missing values is imputed using a model tailored to its nature. 
+The imputation cycle is repeated for a fixed number of iterations (7). This choice is arbitrary but sufficient in practice: monitoring **mean absolute error (MAE)** for continuous variables and classification accuracy for categorical variables shows stabilization after a few iterations.
+
+As a final validation step, the distributions of observed and imputed values are compared using graphical diagnostics. 
+
+Finally all preprocessing and imputation steps are replicated identically on the test set (4800 observations), ensuring full consistency between training and test data.
+
+``` r
+n.sims <- 7  # number of iterations
+train.mae.sqm <- c()
+train.acc.baths <- c()
+train.acc.heat <- c()
+train.acc.house <- c()
+train.acc.year <- c()
+train.mae.condo <- c()
+train.mae.tfloor <- c()
+
+
+for(s in 1:n.sims){
+  
+  # Square Meters
+  
+  lm.1 <- lm(log(square_meters) ~ bathrooms_number.imp + rooms_number, data = data.imp)
+  pred.1 <- floor(exp(predict(lm.1, newdata = data.imp)))
+  train.mae.sqm[s] <- sum(abs(data.imp$square_meters.imp - pred.1))
+  square_meters.imp <- impute(data$square_meters, pred.1) 
+  
+  # Bathrooms Number
+  
+  plr.1 <- polr(bathrooms_number ~ rooms_number + square_meters.imp, data = data.imp)
+  pred.plr.1 <- predict(plr.1, newdata = data.imp)
+  train.acc.baths[s] <- sum(as.numeric(pred.plr.1) == as.numeric(data.imp$bathrooms_number.imp))/nrow(data) 
+  
+  data.imp$bathrooms_number.imp <- impute(data$bathrooms_number, pred.plr.1)
+  
+  # Heating Centralized
+  
+  glm.heating <- glm(heating_centralized ~ conditions + condominium_fees.imp + house_efficiency.imp + fireplace, data = data.imp, family = binomial(link = logit))
+  pred.heating <- ifelse(predict(glm.heating, newdata = data.imp, type = "response") >= 0.5, "independent", "central")
+  train.acc.heat[s] <- sum(as.numeric(as.factor(pred.heating)) == as.numeric(data.imp$heating_centralized.imp))/nrow(data) 
+  data.imp$heating_centralized.imp <- impute(data$heating_centralized, pred.heating)
+  
+  # House Efficiency
+  
+  plr.2 <- polr(house_efficiency ~ conditions + heating_centralized.imp + year.imp + pool + fireplace + hydromassage, data = data.imp)
+  pred.plr.2 <- predict(plr.2, newdata = data.imp)
+  train.acc.house[s] <- sum(as.numeric(pred.plr.2) == as.numeric(data.imp$house_efficiency.imp))/nrow(data) 
+  data.imp$house_efficiency.imp <- impute(data$house_efficiency, pred.plr.2)
+  
+  # Year
+  
+  plr.3 <- polr(year ~ conditions + house_efficiency.imp + zona_new + fireplace + optic_fiber, data = data.imp)
+  pred.plr.3 <- predict(plr.3, newdata = data.imp)
+  train.acc.year[s] <- sum(as.numeric(pred.plr.3) == as.numeric(data.imp$year.imp))/nrow(data)
+  data.imp$year.imp <- impute(data$year, pred.plr.3)
+  
+  # Condominium Fees
+  
+  glm.sign <- glm(I(condominium_fees > 0) ~ lift + heating_centralized.imp + total_floors.imp + car_parking + reception + pool + hydromassage + conditions + house_efficiency.imp,         data = data.imp, family = binomial(link = logit))
+  lm.ifpos.sqrt <- lm(I(sqrt(condominium_fees)) ~ lift + heating_centralized.imp + total_floors.imp + car_parking + reception + pool + hydromassage + conditions + house_efficiency.imp,  data = data.imp, subset = condominium_fees > 0)
+  pred.sign <- ifelse(predict(glm.sign, newdata = data.imp, type = "response") >= 0.5, 1, 0)
+  pred.pos.sqrt <- predict(lm.ifpos.sqrt, newdata = data.imp)
+  pred.pos <- pred.pos.sqrt^2
+  train.mae.condo[s] <- sum(abs(data.imp$condominium_fees.imp - pred.pos))
+  condominium_fees.imp <- impute(data$condominium_fees, pred.sign*pred.pos)
+  
+  # Total Floors
+  
+  lm.2 <- lm(log(total_floors) ~ condominium_fees.imp + floor, data = data.imp)
+  pred.2 <- floor(exp(predict(lm.2, newdata = data.imp)))
+  train.mae.tfloor[s] <- sum(abs(data.imp$total_floors.imp - pred.2))
+  total_floors.imp <- impute(data$total_floors, pred.2) 
+    
+}
+
+```
