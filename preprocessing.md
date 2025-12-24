@@ -314,4 +314,4 @@ data$total_floors <- data.imp$total_floors.imp
 write.csv(data.frame(data), "cleaned_training.csv", row.names = FALSE)
 ```
 
-The resulting file `cleaned_training.csv` constitutes the final training dataset and is used as input for all subsequent modeling steps discussed in []().
+The resulting file `cleaned_training.csv` constitutes the final training dataset and is used as input for all subsequent modeling steps discussed in [`modelling.md`](https://github.com/TommasoMenghini/Milan-Housing/blob/main/modelling.md).
