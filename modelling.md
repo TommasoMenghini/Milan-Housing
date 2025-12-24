@@ -89,6 +89,10 @@ Every statistical model is an approximation of reality, but in this case the lim
 show that the relationship between the logarithm of the selling price and `square_meters` as well as `condominium_fees` is clearly nonlinear. A nonparametric
 approach for modeling these covariates therefore represents a natural alternative.
 
+<p align="center">
+  <img src="img/log_price_square_meters.png" width="45%" />
+  <img src="img/log_price_condominium_fees.png" width="45%" />
+</p>
 
 
 For this reason, a **Generalized Additive Model (GAM)** is adopted. GAMs allow the
@@ -105,3 +109,27 @@ The model specification can be described in plain terms as:
 - response variable: `log(selling_price)`
 - smooth terms: `square_meters`, `condominium_fees`, `total_floors`
 - linear terms: all remaining covariates
+
+```r
+library(mgcv)
+
+# Variables modeled with splines
+spline_vars <- c("square_meters", "condominium_fees", "total_floors")
+
+# All predictors except the response
+all_vars <- setdiff(names(train), "selling_price")
+
+# Linear predictors
+linear_vars <- setdiff(all_vars, spline_vars)
+
+# Spline terms (thin plate regression splines)
+spline_terms <- paste0("s(", spline_vars, ", bs = 'tp')")
+
+# Final model formula
+formula_string <- paste("log(selling_price) ~", paste(c(spline_terms, linear_vars), collapse = " + "))
+formula_finale <- as.formula(formula_string)
+
+# Fit GAM
+m_gam <- gam(formula_finale, data = train, method = "REML")
+```
+
