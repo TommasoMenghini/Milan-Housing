@@ -22,7 +22,7 @@ The repository is organized as follows:
 - **`some_functions.R`**  
   R code of some useful functions.
 
-  - **`modelling.R`**  
+- **`modelling.R`**  
   R code of the models employed in the study
 
 ### Documentation
