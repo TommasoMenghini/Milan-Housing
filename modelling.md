@@ -89,10 +89,15 @@ Every statistical model is an approximation of reality, but in this case the lim
 show that the relationship between the logarithm of the selling price and `square_meters` as well as `condominium_fees` is clearly nonlinear. A nonparametric
 approach for modeling these covariates therefore represents a natural alternative.
 
-<p align="center">
-  <img src="img/log_price_square_meters.png" width="45%" />
-  <img src="img/log_price_condominium_fees.png" width="45%" />
-</p>
+<div align="center">
+<img src="img/log_price_square_meters.png" width="45%" />
+<img src="img/log_price_condominium_fees.png" width="45%" />
+
+<br>
+
+**Figure 1: Scatterplots of (a) square.meters, (b) condominium.fees**
+
+</div>
 
 
 For this reason, a **Generalized Additive Model (GAM)** is adopted. GAMs allow the
@@ -146,3 +151,38 @@ For all three covariates, the EDF values are clearly larger than 1, indicating t
 | s(total.floors)      | 3.882 |
 
 </div>
+
+Figure 4 below displays the estimated partial effects of the smooth terms included in the GAM.
+Thanks to the additive structure of the model, each curve represents the marginal effect of a single covariate on the logarithm of the selling price, while holding all other predictors fixed.
+
+Panel (a) shows that the effect of `square.meters` on the response is clearly positive, as expected: larger apartments tend to have higher market prices. However, the relationship is markedly non–linear. The increase in price is steep for small and medium-sized dwellings, while it progressively flattens for larger surface areas. Moreover, the right tail of the curve appears more irregular, reflecting higher uncertainty and increased variability due to the relatively small number of very large properties in the dataset.
+
+In contrast, panels (b) and (c) suggest that `condominium.fees` and `total.floors` have a much weaker influence on the selling price. Although their effects are modeled non–parametrically, the corresponding smooth functions are almost flat over most of their domain. This indicates that variations in these covariates contribute only marginally to explaining the response, once the other predictors are taken into account.
+
+Overall, these plots confirm the interpretation already suggested by the effective degrees of freedom: `square.meters` plays a central and strongly non–linear role in the model, whereas `condominium.fees` and `total.floors` exhibit limited explanatory power with respect to the variation in house prices.
+
+<div align="center">
+
+<img src="img/partial_sqm.png" width="30%">
+<img src="img/partial_cfees.png" width="30%">
+<img src="img/partial_totfloor.png" width="30%">
+
+<br>
+
+**Figure 2: Partial effect of (a) square.meters, (b) condominium.fees, (c) total.floors**
+
+</div>
+
+Finally predictions on the validation set are obtained by exponentiating the fitted values of the GAM, since the model is estimated on the logarithmic scale of the response. This guarantees positive predictions and brings the estimates back to the original price scale.
+
+Model performance is assessed through the **Mean Absolute Error (MAE)**, computed on the validation set. The resulting MAE is **78937.59**, indicating a clear improvement over the naive linear model and confirming the effectiveness of the GAM specification adopted in the analysis.
+
+```r
+y_hat_gam <- exp(predict(m_gam, newdata = validation))
+summary(y_hat_gam)
+
+MAE(validation$selling_price, y_hat_gam) 
+```
+An MAE of 78,937.59 implies that, on average, the predicted market price of a house differs from the observed value by approximately **79,000 euros** in absolute terms. This quantity provides an intuitive measure of the typical prediction error of the model on unseen data, expressed on the same scale as the response variable.
+
+Given the wide range and high variability of housing prices in the Milan real estate market, this level of error can be considered reasonable and indicates that the model is able to capture a substantial portion of the underlying price structure, while leaving room for further improvements through additional covariates or more refined modeling strategies.
