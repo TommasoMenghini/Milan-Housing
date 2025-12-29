@@ -132,4 +132,17 @@ formula_finale <- as.formula(formula_string)
 # Fit GAM
 m_gam <- gam(formula_finale, data = train, method = "REML")
 ```
+The table below reports the effective degrees of freedom (EDF) associated with the smooth components of the GAM.
+For all three covariates, the EDF values are clearly larger than 1, indicating that the corresponding smooth functions do not collapse to linear terms. Had the EDF been equal (or very close) to 1, the smooth effect would have effectively reduced to a linear relationship.
 
+<div align="center">
+
+**Table 1: Effective Degrees of Freedom of the smooth terms**
+
+| Smooth term          | EDF  |
+|----------------------|------|
+| s(square.meters)     | 8.107 |
+| s(condominium.fees)  | 3.592 |
+| s(total.floors)      | 3.882 |
+
+</div>
